@@ -25,15 +25,22 @@ const CHARACTER_IDS = [
 /* ============================
    FETCH CHARACTER
 ============================ */
+const API_BASE = "https://dnd-obs-tools-4t8l9rd38-revengesystem-9895s-projects.vercel.app/api/character";
+
 async function fetchCharacter(id) {
     try {
-        const res = await fetch(
-            `https://character-service.dndbeyond.com/character/v5/character/${id}`
-        );
+        const res = await fetch(`${API_BASE}/${id}`);
         const json = await res.json();
-        return json.data;
-    } catch (e) {
-        console.error("Failed:", id, e);
+
+        const data = json.data;
+
+        return {
+            name: data.name,
+            hp: data.currentHitPoints ?? data.baseHitPoints,
+            maxHp: data.maximumHitPoints
+        };
+    } catch (err) {
+        console.error("Failed:", id, err);
         return null;
     }
 }
