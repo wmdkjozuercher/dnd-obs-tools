@@ -1,1 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DDB DM Overlay</title>
+</head>
+<body style="margin:0;background:transparent;font-family:sans-serif;">
 
+<div id="app"></div>
+
+<script>
+/* ============================
+   CONFIG — PUT YOUR IDS HERE
+============================ */
+const CHARACTER_IDS = [
+    "141139271",
+    "141138928",
+    "141139103",
+    "141139220",
+    "141139167",
+    "141139039",
+    "160974318"
+];
+
+/* ============================
+   FETCH CHARACTER
+============================ */
+async function fetchCharacter(id) {
+    try {
+        const res = await fetch(
+            `https://character-service.dndbeyond.com/character/v5/character/${id}`
+        );
+        const json = await res.json();
+        return json.data;
+    } catch (e) {
+        console.error("Failed:", id, e);
+        return null;
+    }
+}
+
+/* ============================
+   HP CALC
+============================ */
+function getHpInfo(c) {
+    const maxHP =
+        c.overrideHitPoints ||
+        (c.baseHitPoints + (c.bonusHitPoints || 0));
+
+    const currentHP = Math.max(
+        0,
+        maxHP - (c.removedHitPoints || 0)
+    );
+
+    const percent = maxHP > 0 ? (currentHP / maxHP) * 100 : 0;
+
+    let color = "#4caf50";
+    if (percent < 30) color = "#e53935";
+    else if (percent < 70) color = "#fbc02d";
+
+    return { currentHP, maxHP, percent, color };
+}
+
+/* ============================
+   RENDER
+============================ */
+function render(chars) {
+    const app = document.getElementById("app");
+
+    app.innerHTML = chars.map(c => {
+        const hp = getHpInfo(c);
+
+        return `
+            <div style="margin:10px;">
+                <div style="font-weight:bold;color:white;margin-bottom:4px;">
+                    ${c.name}
+                </div>
+
+                <div style="
+                    position:relative;
+                    background:#333;
+                    border-radius:6px;
+                    height:24px;
+                    overflow:hidden;
+                ">
+                    <div style="
+                        width:${hp.percent}%;
+                        background:${hp.color};
+                        height:100%;
+                        transition:width 0.5s ease;
+                    "></div>
+
+                    <div style="
+                        position:absolute;
+                        width:100%;
+                        text-align:center;
+                        top:0;
+                        left:0;
+                        line-height:24px;
+                        font-weight:bold;
+                        color:white;
+                    ">
+                        ${hp.currentHP} / ${hp.maxHP}
+                        ${c.temporaryHitPoints ? `(+${c.temporaryHitPoints})` : ""}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+/* ============================
+   LOOP
+============================ */
+async function update() {
+    const chars = await Promise.all(
+        CHARACTER_IDS.map(fetchCharacter)
+    );
+
+    render(chars.filter(Boolean));
+}
+
+update();
+setInterval(update, 10000); // refresh every 10s
+</script>
+
+</body>
+</html>
