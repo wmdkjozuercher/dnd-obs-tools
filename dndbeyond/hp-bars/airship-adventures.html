@@ -33,18 +33,24 @@ async function fetchCharacter(id) {
         const json = await res.json();
 
         const data = json.data;
+	console.log(data);
+        const maxHp = Number(data.baseHitPoints ?? 1);
+        const damage = Number(data.removedHitPoints ?? 0);
+        const tempHp = Number(data.temporaryHitPoints ?? 0);
+console.log(maxHp);
+        const hp = maxHp - damage;
 
         return {
             name: data.name,
-            hp: data.currentHitPoints ?? data.baseHitPoints,
-            maxHp: data.maximumHitPoints
+            hp,
+            maxHp,
+            tempHp
         };
     } catch (err) {
         console.error("Failed:", id, err);
         return null;
     }
 }
-
 /* ============================
    HP CALC
 ============================ */
@@ -74,7 +80,11 @@ function render(chars) {
     const app = document.getElementById("app");
 
     app.innerHTML = chars.map(c => {
-        const hp = getHpInfo(c);
+        const percent = c.maxHp > 0 ? (c.hp / c.maxHp) * 100 : 0;
+
+        let color = "#4caf50";
+        if (percent < 30) color = "#e53935";
+        else if (percent < 70) color = "#fbc02d";
 
         return `
             <div style="margin:10px;">
@@ -90,8 +100,8 @@ function render(chars) {
                     overflow:hidden;
                 ">
                     <div style="
-                        width:${hp.percent}%;
-                        background:${hp.color};
+                        width:${percent}%;
+                        background:${color};
                         height:100%;
                         transition:width 0.5s ease;
                     "></div>
@@ -106,15 +116,14 @@ function render(chars) {
                         font-weight:bold;
                         color:white;
                     ">
-                        ${hp.currentHP} / ${hp.maxHP}
-                        ${c.temporaryHitPoints ? `(+${c.temporaryHitPoints})` : ""}
+                        ${c.hp} / ${c.maxHp}
+                        ${c.tempHp ? `(+${c.tempHp})` : ""}
                     </div>
                 </div>
             </div>
         `;
     }).join("");
 }
-
 /* ============================
    LOOP
 ============================ */
