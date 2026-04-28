@@ -59,12 +59,15 @@ async function fetchCharacter(id) {
 ============================ */
 
 function getAllModifiers(data) {
+  const withSource = (source, mods) =>
+    (mods || []).map(mod => ({ ...mod, sourceType: source }));
+
   return [
-    ...(data.modifiers?.race || []),
-    ...(data.modifiers?.class || []),
-    ...(data.modifiers?.background || []),
-    ...(data.modifiers?.feat || []),
-    ...(data.modifiers?.item || [])
+    ...withSource("race", data.modifiers?.race),
+    ...withSource("class", data.modifiers?.class),
+    ...withSource("background", data.modifiers?.background),
+    ...withSource("feat", data.modifiers?.feat),
+    ...withSource("item", data.modifiers?.item)
   ];
 }
 
@@ -108,15 +111,38 @@ function isSelectedChoiceModifier(data, modifier) {
 }
 
 function isActiveModifier(data, modifier) {
+  if (modifier.sourceType === "item" && !isActiveItemModifier(data, modifier)) {
+    return false;
+  }
+
   return modifier.isGranted !== false || isSelectedChoiceModifier(data, modifier);
+}
+
+function isActiveItemModifier(data, modifier) {
+  const items = data.inventory || [];
+  const matchingItems = items.filter(item =>
+    item.id === modifier.componentId ||
+    item.definition?.id === modifier.componentId
+  );
+
+  if (!matchingItems.length) return modifier.isGranted !== false;
+
+  return matchingItems.some(item =>
+    item.equipped &&
+    (!modifier.requiresAttunement || item.isAttuned)
+  );
 }
 
 function isStatModifier(modifier, statId) {
   const statName = getStatName(statId);
+  const abilityScoreEntityTypeId = 1472902489;
+
   return (
-    modifier.statId === statId ||
-    modifier.entityId === statId ||
-    modifier.subType === `${statName}-score`
+    modifier.subType === `${statName}-score` ||
+    (
+      modifier.entityTypeId === abilityScoreEntityTypeId &&
+      modifier.entityId === statId
+    )
   );
 }
 
@@ -268,8 +294,8 @@ function calculateMaxHp(data) {
   const bonus = Number(data.bonusHitPoints ?? 0);
 
   const perLevelBonus = getModifiers(data, "hit-points-per-level");
-  //const flatBonus = getModifiers(data, "hit-points");
-const flatBonus = 0;
+  const flatBonus = getModifiers(data, "hit-points");
+
   return (
     base +
     bonus +
