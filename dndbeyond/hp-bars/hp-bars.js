@@ -90,8 +90,10 @@
     );
   }
 
-  function getStatModifiers(data, statId) {
-    let total = 0;
+  function getStatModifierBreakdown(data, statId) {
+    const setValues = [];
+    const contributions = [];
+    let bonusTotal = 0;
 
     for (const modifier of getAllModifiers(data)) {
       if (!isActiveModifier(data, modifier)) continue;
@@ -99,10 +101,27 @@
       const value = Number(modifier.value ?? modifier.fixedValue ?? 0);
       if (!value || !isStatModifier(modifier, statId)) continue;
 
-      total += value;
+      const contribution = {
+        source: modifier.friendlySubtypeName || modifier.subType || "unknown",
+        type: modifier.type || "bonus",
+        value,
+        selectedChoice: modifier.isGranted === false
+      };
+
+      contributions.push(contribution);
+
+      if (modifier.type === "set") {
+        setValues.push(value);
+      } else {
+        bonusTotal += value;
+      }
     }
 
-    return total;
+    return {
+      bonusTotal,
+      setValue: setValues.length ? Math.max(...setValues) : null,
+      contributions
+    };
   }
 
   function getStat(data, statId) {
@@ -110,11 +129,15 @@
     const rawBonus = data.bonusStats?.find((stat) => stat.id === statId)?.value;
     const bonus = rawBonus == null ? 0 : rawBonus;
     const override = data.overrideStats?.find((stat) => stat.id === statId)?.value;
-    const modifierBonus = getStatModifiers(data, statId);
+    const modifierBreakdown = getStatModifierBreakdown(data, statId);
 
     if (override != null) return override;
 
-    return base + bonus + modifierBonus;
+    const totalWithoutSet = base + bonus + modifierBreakdown.bonusTotal;
+
+    return modifierBreakdown.setValue == null
+      ? totalWithoutSet
+      : Math.max(totalWithoutSet, modifierBreakdown.setValue);
   }
 
   function getStatBreakdown(data, statId) {
@@ -122,29 +145,21 @@
     const rawBonus = data.bonusStats?.find((stat) => stat.id === statId)?.value;
     const bonus = rawBonus == null ? 0 : rawBonus;
     const override = data.overrideStats?.find((stat) => stat.id === statId)?.value;
-    const contributions = [];
-    let modifierTotal = 0;
-
-    for (const modifier of getAllModifiers(data)) {
-      if (!isActiveModifier(data, modifier)) continue;
-
-      const value = Number(modifier.value ?? modifier.fixedValue ?? 0);
-      if (!value || !isStatModifier(modifier, statId)) continue;
-
-      modifierTotal += value;
-      contributions.push({
-        source: modifier.friendlySubtypeName || modifier.subType || "unknown",
-        value,
-        selectedChoice: modifier.isGranted === false
-      });
-    }
+    const modifierBreakdown = getStatModifierBreakdown(data, statId);
+    const totalWithoutSet = base + bonus + modifierBreakdown.bonusTotal;
 
     return {
       base,
       bonus,
-      modifierTotal,
-      contributions,
-      total: override != null ? override : base + bonus + modifierTotal
+      modifierTotal: modifierBreakdown.bonusTotal,
+      setValue: modifierBreakdown.setValue,
+      contributions: modifierBreakdown.contributions,
+      total:
+        override != null
+          ? override
+          : modifierBreakdown.setValue == null
+            ? totalWithoutSet
+            : Math.max(totalWithoutSet, modifierBreakdown.setValue)
     };
   }
 
@@ -278,7 +293,9 @@
               <div>
                 ${character.debug.con.base} (base)
                 ${character.debug.con.bonus ? `+ ${character.debug.con.bonus}` : ""}
-                ${character.debug.con.contributions.map((item) => `+ ${item.value}`).join(" ")}
+                ${character.debug.con.contributions.map((item) =>
+                  item.type === "set" ? `set ${item.value}` : `+ ${item.value}`
+                ).join(" ")}
               </div>
             </div>
           </div>
