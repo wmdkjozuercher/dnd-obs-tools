@@ -256,52 +256,80 @@
     return div.innerHTML;
   }
 
-  function render(container, chars) {
-    container.innerHTML = chars
-      .map((character) => {
-        const percent = character.maxHp > 0 ? (character.hp / character.maxHp) * 100 : 0;
-        const width = clampPercent(percent);
-        const color = getHealthColor(percent);
-        const tmpHpIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-plus-icon lucide-heart-plus"><path d="m14.479 19.374-.971.939a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5a5.2 5.2 0 0 1-.219 1.49"/><path d="M15 15h6"/><path d="M18 12v6"/></svg>';
+  const tmpHpIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-plus-icon lucide-heart-plus"><path d="m14.479 19.374-.971.939a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5a5.2 5.2 0 0 1-.219 1.49"/><path d="M15 15h6"/><path d="M18 12v6"/></svg>';
 
-        return `
-          <div class="ddb-hp-bar">
-            <div class="ddb-hp-bar__name">${escapeHtml(character.name)}</div>
-            <div class="ddb-hp-bar__track">
-              <div class="ddb-hp-bar__fill" style="width:${width}%;background:${color};"></div>
-            </div>
-            ${
-              character.tempHp
-                ? '<div class="ddb-hp-bar__temp"></div>'
-                : ""
-            }
-              <div class="ddb-hp-bar__label">
-                <span class="ddb-current-hp-label">${character.hp}</span> / <span class="ddb-max-hp-label">${character.maxHp}</span>
-              </div>
-              ${
-                character.tempHp
-                  ? `
-                    <div class="ddb-hp-bar__temp-label">
-                      <span class="ddb-hp-bar__temp-icon">${tmpHpIcon}</span>
-                      <span class="ddb-hp-bar__temp-value">${character.tempHp}</span>
-                    </div>
-                  `
-                  : ""
-              }
-            <div class="ddb-hp-bar__debug">
-              <div><strong>CON:</strong> ${character.debug.con.total}</div>
-              <div>
-                ${character.debug.con.base} (base)
-                ${character.debug.con.bonus ? `+ ${character.debug.con.bonus}` : ""}
-                ${character.debug.con.contributions.map((item) =>
-                  item.type === "set" ? `set ${item.value}` : `+ ${item.value}`
-                ).join(" ")}
-              </div>
-            </div>
+  function renderHpBar(character, options) {
+    const config = options || {};
+    const percent = character.maxHp > 0 ? (character.hp / character.maxHp) * 100 : 0;
+    const width = clampPercent(percent);
+    const color = getHealthColor(percent);
+    const barClass = config.isGroup ? "ddb-hp-bar ddb-hp-bar--group" : "ddb-hp-bar";
+
+    return `
+      <div class="${barClass}">
+        <div class="ddb-hp-bar__name">${escapeHtml(character.name)}</div>
+        <div class="ddb-hp-bar__track">
+          <div class="ddb-hp-bar__fill" style="width:${width}%;background:${color};"></div>
+        </div>
+        ${
+          character.tempHp
+            ? '<div class="ddb-hp-bar__temp"></div>'
+            : ""
+        }
+          <div class="ddb-hp-bar__label">
+            <span>
+              <span class="ddb-current-hp-label">${character.hp}</span> / <span class="ddb-max-hp-label">${character.maxHp}</span>
+            </span>
           </div>
-        `;
-      })
-      .join("");
+          ${
+            character.tempHp
+              ? `
+                <div class="ddb-hp-bar__temp-label">
+                  <span class="ddb-hp-bar__temp-icon">${tmpHpIcon}</span>
+                  <span class="ddb-hp-bar__temp-value">${character.tempHp}</span>
+                </div>
+              `
+              : ""
+          }
+        ${config.showDebug ? renderDebug(character) : ""}
+      </div>
+    `;
+  }
+
+  function renderDebug(character) {
+    return `
+      <div class="ddb-hp-bar__debug">
+        <div><strong>CON:</strong> ${character.debug.con.total}</div>
+        <div>
+          ${character.debug.con.base} (base)
+          ${character.debug.con.bonus ? `+ ${character.debug.con.bonus}` : ""}
+          ${character.debug.con.contributions.map((item) =>
+            item.type === "set" ? `set ${item.value}` : `+ ${item.value}`
+          ).join(" ")}
+        </div>
+      </div>
+    `;
+  }
+
+  function getGroupCharacter(chars) {
+    return {
+      name: "Group",
+      hp: chars.reduce((sum, character) => sum + character.hp, 0),
+      maxHp: chars.reduce((sum, character) => sum + character.maxHp, 0),
+      tempHp: chars.reduce((sum, character) => sum + character.tempHp, 0)
+    };
+  }
+
+  function render(container, chars) {
+    const bars = chars.map((character) =>
+      renderHpBar(character, { showDebug: true })
+    );
+
+    if (chars.length) {
+      bars.push(renderHpBar(getGroupCharacter(chars), { isGroup: true }));
+    }
+
+    container.innerHTML = bars.join("");
   }
 
   function renderDndBeyondHpBars(options) {

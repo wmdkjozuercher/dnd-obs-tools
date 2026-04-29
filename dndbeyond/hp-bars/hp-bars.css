@@ -21,6 +21,19 @@ body {
   margin: 25px 5px;
 }
 
+.ddb-hp-bar--group {
+  margin-top: 45px;
+}
+
+.ddb-hp-bar--group .ddb-hp-bar__track {
+  
+}
+
+.ddb-hp-bar--group .ddb-hp-bar__label {
+  padding-top: 0;
+  line-height: 118px;
+}
+
 .ddb-hp-bar__name {
   display: none;
   font-weight: bold;
