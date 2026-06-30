@@ -177,13 +177,59 @@
     return data.classes.reduce((sum, cls) => sum + (cls.level || 0), 0);
   }
 
+  function isFixedHitPointType(data) {
+    return Number(data.preferences?.hitPointType) === 1;
+  }
+
+  function getClassHitDie(cls) {
+    return Number(cls.definition?.hitDice ?? cls.hitDice ?? 0);
+  }
+
+  function getFixedHitPointsAfterFirstLevel(hitDie) {
+    return Math.floor(hitDie / 2) + 1;
+  }
+
+  function getFixedBaseHitPoints(data) {
+    const classes = data.classes || [];
+    const startingClass =
+      classes.find((cls) => cls.isStartingClass) || classes[0];
+
+    if (!startingClass) {
+      return Number(data.baseHitPoints ?? 0);
+    }
+
+    let total = 0;
+
+    for (const cls of classes) {
+      const level = Number(cls.level || 0);
+      const hitDie = getClassHitDie(cls);
+      if (!level || !hitDie) continue;
+
+      const fixedLevelHp = getFixedHitPointsAfterFirstLevel(hitDie);
+
+      if (cls === startingClass) {
+        total += hitDie + fixedLevelHp * (level - 1);
+      } else {
+        total += fixedLevelHp * level;
+      }
+    }
+
+    return total;
+  }
+
+  function getBaseHitPoints(data) {
+    return isFixedHitPointType(data)
+      ? getFixedBaseHitPoints(data)
+      : Number(data.baseHitPoints ?? 0);
+  }
+
   function getHpBreakdown(data) {
     const level = getLevel(data);
     const conTotal = getStat(data, 3);
     const conMod = Math.floor((conTotal - 10) / 2);
     const perLevel = getModifiers(data, "hit-points-per-level");
     const flat = getModifiers(data, "hit-points");
-    const base = data.baseHitPoints ?? 0;
+    const base = getBaseHitPoints(data);
     const bonus = Number(data.bonusHitPoints ?? 0);
 
     return {
@@ -206,7 +252,7 @@
     const level = getLevel(data);
     const conTotal = getStat(data, 3);
     const conMod = Math.floor((conTotal - 10) / 2);
-    const base = data.baseHitPoints ?? 0;
+    const base = getBaseHitPoints(data);
     const bonus = Number(data.bonusHitPoints ?? 0);
     const perLevelBonus = getModifiers(data, "hit-points-per-level");
     const flatBonus = getModifiers(data, "hit-points");
