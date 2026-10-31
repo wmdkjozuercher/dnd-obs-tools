@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Initiative · OBS combat tracker</title>
+  <link rel="stylesheet" href="tracker.css">
+  <script src="state.js" defer></script>
+  <script src="tracker.js" defer></script>
+</head>
+<body>
+  <main class="workspace">
+    <section class="controls" aria-label="Tracker controls">
+      <header><span class="eyebrow">THE ENCOUNTER TABLE</span><h1>Initiative</h1><p>Keep the story moving.</p></header>
+      <div class="navigation"><button id="previous" type="button">← Previous</button><button id="next" class="primary" type="button">Next turn →</button></div>
+      <div class="encounter-tools" aria-label="Encounter files">
+        <button id="save" type="button">Save JSON</button>
+        <button id="load" type="button">Load JSON</button>
+        <button id="undo" type="button" disabled>Undo</button>
+        <button id="restart" type="button" title="Keep the roster and restart at round 1">Restart combat</button>
+        <button id="reset" type="button" title="Remove all combatants">Clear encounter</button>
+      </div>
+      <input id="load-file" type="file" accept=".json,application/json" hidden>
+      <p id="status" class="hint" role="status"></p>
+      <form id="add-form">
+        <label for="name">Combatant name</label>
+        <input id="name" name="name" placeholder="e.g. Goblin scout" maxlength="80" required autocomplete="off">
+        <label for="initiative">Initiative</label>
+        <input id="initiative" name="initiative" type="number" value="10" step="1" required>
+        <fieldset><legend>Allegiance</legend><div class="factions">
+          <label class="faction enemy"><input type="radio" name="faction" value="enemy" checked><span>Enemy</span></label>
+          <label class="faction neutral"><input type="radio" name="faction" value="neutral"><span>Neutral</span></label>
+          <label class="faction friendly"><input type="radio" name="faction" value="friendly"><span>Friendly</span></label>
+          <label class="faction none"><input type="radio" name="faction" value="none"><span>None</span></label>
+        </div></fieldset>
+        <label for="priority">Priority · lower wins initiative ties</label>
+        <input id="priority" name="priority" type="number" value="100" step="1" required>
+        <div id="legendary-field">
+          <label for="legendary-actions">Legendary actions per round</label>
+          <input id="legendary-actions" name="legendaryActions" type="number" value="0" min="0" max="99" step="1" required>
+        </div>
+        <button class="primary" type="submit">+ Add combatant</button>
+      </form>
+<div class="panel-layout"><span id="layout-label-upcoming">Upcoming layout</span><div id="layout-upcoming" class="layout-buttons" role="group" aria-labelledby="layout-label-upcoming"><button type="button" data-layout="vertical" aria-pressed="false">Below each other</button><button type="button" data-layout="horizontal" aria-pressed="false">Next to each other</button></div></div>
+<div class="panel-layout"><span id="layout-label-full">Full order layout</span><div id="layout-full" class="layout-buttons" role="group" aria-labelledby="layout-label-full"><button type="button" data-layout="vertical" aria-pressed="false">Below each other</button><button type="button" data-layout="horizontal" aria-pressed="false">Next to each other</button></div></div>
+<div class="panel-layout"><span id="layout-label-nowNext">Current + Next layout</span><div id="layout-nowNext" class="layout-buttons" role="group" aria-labelledby="layout-label-nowNext"><button type="button" data-layout="vertical" aria-pressed="false">Below each other</button><button type="button" data-layout="horizontal" aria-pressed="false">Next to each other</button></div></div>
+      <details class="display-settings"><summary>OBS display settings</summary>
+        <label class="action-setting">Visible turns (compact)<input id="visibleTurns" type="number" min="1" max="50" step="1"></label>
+        <label class="action-setting">Card width (px)<input id="cardWidth" type="number" min="240" max="1000" step="1"></label>
+        <label class="action-setting">Text size (px)<input id="textSize" type="number" min="12" max="40" step="1"></label>
+        <label class="action-setting">Card spacing (px)<input id="spacing" type="number" min="0" max="40" step="1"></label>
+        <label class="action-setting">Background opacity (%)<input id="opacity" type="number" min="0" max="100" step="1"></label>
+      </details>
+      <p class="hint">Highest initiative goes first; ties use the lowest priority. Click a combatant to make it their turn.</p>
+      <p class="hint">Legendary actions appear after other combatants’ turns and reshuffle each round. Add another combatant to create action gaps.</p>
+      <p class="hint">OBS: use a 1920 px wide source for all three vertical panels at the default card width. Crop each panel separately and use Interact for controls.</p>
+      <div id="manage" aria-label="Remove combatants"></div>
+      <p class="hint">Edit names above, then press Enter or click away to save.</p>
+    </section>
+    <section class="preview" aria-label="Combat order">
+      <section class="order-panel" aria-label="Upcoming turns">
+        <div class="preview-heading"><span class="eyebrow">UPCOMING TURNS</span><span id="round" class="round-chip">Round 1</span></div>
+        <div id="combatants" class="combatants" aria-label="Upcoming initiative order"></div>
+      </section>
+      <section class="order-panel" aria-label="Full combat order">
+        <div class="preview-heading"><span class="eyebrow">FULL COMBAT ORDER</span><span id="full-round" class="round-chip">Round 1</span></div>
+        <div id="full-combatants" class="combatants" aria-label="Full initiative order"></div>
+      </section>
+      <section class="order-panel now-next-panel" aria-label="Current and next combatant">
+        <div class="preview-heading"><span class="eyebrow">CURRENT + NEXT</span><span id="now-round" class="round-chip">Round 1</span></div>
+        <div id="now-next"></div>
+      </section>
+      <p id="empty" class="empty">The battlefield is quiet.<br><span>Add a combatant to begin the encounter.</span></p>
+    </section>
+  </main>
+</body>
+</html>

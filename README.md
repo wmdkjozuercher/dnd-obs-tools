@@ -1,5 +1,9 @@
 # dnd-obs-tools
 
+## Initiative Tracker
+
+An OBS overlay with combatant management, initiative sorting, allegiance colors, turn navigation, and vertical/horizontal layouts. Add `initiative-tracker/index.html` as a local Browser source and use OBS Interact. See [setup instructions](initiative-tracker/README.md).
+
 ## D&D Beyond HP Bars
 
 Shared HP bar styling and logic live in:
