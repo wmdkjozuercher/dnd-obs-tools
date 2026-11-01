@@ -1,6 +1,6 @@
 (function () {
   const DEFAULT_API_BASE =
-    "https://dnd-obs-tools-a7qur8hvi-revengesystem-9895s-projects.vercel.app/api/character";
+    "https://project-gcw78.vercel.app/api/character";
   const DEFAULT_REFRESH_MS = 10000;
 
   function getAllModifiers(data) {
