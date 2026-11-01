@@ -177,6 +177,32 @@
     return data.classes.reduce((sum, cls) => sum + (cls.level || 0), 0);
   }
 
+  function getPerLevelHitPointBonus(data) {
+    return getAllModifiers(data)
+      .filter((modifier) =>
+        modifier.subType === "hit-points-per-level" &&
+        isActiveModifier(data, modifier)
+      )
+      .reduce((sum, modifier) => {
+        // Class-feature HP bonuses scale with their owning class, not total level.
+        const owningClass = modifier.sourceType === "class"
+          ? (data.classes || []).find((cls) => {
+              const features = [
+                ...(cls.classFeatures || []).map((feature) => feature.definition),
+                ...(cls.definition?.classFeatures || []),
+                ...(cls.subclassDefinition?.classFeatures || [])
+              ];
+              return features.some((feature) =>
+                feature?.id === modifier.componentId &&
+                feature?.entityTypeId === modifier.componentTypeId
+              );
+            })
+          : null;
+        const level = owningClass ? Number(owningClass.level || 0) : getLevel(data);
+        return sum + Number(modifier.value ?? modifier.fixedValue ?? 0) * level;
+      }, 0);
+  }
+
   function isFixedHitPointType(data) {
     return Number(data.preferences?.hitPointType) === 1;
   }
@@ -227,7 +253,7 @@
     const level = getLevel(data);
     const conTotal = getStat(data, 3);
     const conMod = Math.floor((conTotal - 10) / 2);
-    const perLevel = getModifiers(data, "hit-points-per-level");
+    const perLevelBonus = getPerLevelHitPointBonus(data);
     const flat = getModifiers(data, "hit-points");
     const base = getBaseHitPoints(data);
     const bonus = Number(data.bonusHitPoints ?? 0);
@@ -238,9 +264,9 @@
       bonus,
       conMod,
       conBonus: conMod * level,
-      perLevelBonus: perLevel * level,
+      perLevelBonus,
       flatBonus: flat,
-      total: base + bonus + conMod * level + perLevel * level + flat
+      total: base + bonus + conMod * level + perLevelBonus + flat
     };
   }
 
@@ -254,10 +280,10 @@
     const conMod = Math.floor((conTotal - 10) / 2);
     const base = getBaseHitPoints(data);
     const bonus = Number(data.bonusHitPoints ?? 0);
-    const perLevelBonus = getModifiers(data, "hit-points-per-level");
+    const perLevelBonus = getPerLevelHitPointBonus(data);
     const flatBonus = getModifiers(data, "hit-points");
 
-    return base + bonus + conMod * level + perLevelBonus * level + flatBonus;
+    return base + bonus + conMod * level + perLevelBonus + flatBonus;
   }
 
   async function fetchCharacter(id, apiBase) {
