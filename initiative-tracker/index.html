@@ -36,7 +36,7 @@
         <label for="priority">Priority · lower wins initiative ties</label>
         <input id="priority" name="priority" type="number" value="100" step="1" required>
         <div id="legendary-field">
-          <label for="legendary-actions">Legendary actions per round</label>
+          <label for="legendary-actions">Legendary actions between turns</label>
           <input id="legendary-actions" name="legendaryActions" type="number" value="0" min="0" max="99" step="1" required>
         </div>
         <button class="primary" type="submit">+ Add combatant</button>
@@ -52,7 +52,7 @@
         <label class="action-setting">Background opacity (%)<input id="opacity" type="number" min="0" max="100" step="1"></label>
       </details>
       <p class="hint">Highest initiative goes first; ties use the lowest priority. Click a combatant to make it their turn.</p>
-      <p class="hint">Legendary actions appear after other combatants’ turns and reshuffle each round. Add another combatant to create action gaps.</p>
+      <p class="hint">Legendary actions span the monster’s regular turns, across round boundaries. They never appear directly before or after their owner. At least three combatants are needed for a legal gap.</p>
       <p class="hint">OBS: use a 1920 px wide source for all three vertical panels at the default card width. Crop each panel separately and use Interact for controls.</p>
       <div id="manage" aria-label="Remove combatants"></div>
       <p class="hint">Edit names above, then press Enter or click away to save.</p>

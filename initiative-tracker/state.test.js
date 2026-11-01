@@ -90,7 +90,7 @@ test('legendary actions have the exact requested count and follow other combatan
       if (!turn.legendary) precedingCombatant = turn.id;
       else { assert.notEqual(precedingCombatant, turn.ownerId); gaps.add(precedingCombatant); }
     }
-    assert.equal(gaps.size, Math.min(4, count));
+    assert.equal(gaps.size, Math.min(3, count));
     assert.equal(new Set(turns.map(t => t.id)).size, turns.length);
   }
 });
@@ -130,10 +130,12 @@ test('count edits, rename, and reducing active legendary actions remain valid', 
   assert.ok(model.turns(state).some(t => t.id === state.activeId));
 });
 
-test('only enemies have legendary actions; lone enemies wait for another combatant', () => {
+test('only enemies have legendary actions; at least three combatants are needed for legal gaps', () => {
   let state = model.add(model.empty(), { ...combatant('Dragon', 20), legendaryActions: 3 });
   assert.equal(model.turns(state).length, 1);
   state = model.add(state, { ...combatant('Hero', 10), faction: 'friendly', legendaryActions: 5 });
+  assert.equal(model.turns(state).filter(t => t.legendary).length, 0);
+  state = model.add(state, { ...combatant('Second hero', 5), faction: 'friendly' });
   assert.equal(model.turns(state).filter(t => t.legendary).length, 3);
   assert.equal(state.combatants.find(c => c.id === 'Hero').legendaryActions, 0);
 });
@@ -346,11 +348,52 @@ test('skip next can target the next round without skipping its later actions', (
 });
 
 test('skip window stops at the owner regular turn within the same round', () => {
-  const state = model.normalize({ ...lateDragonEncounter(), activeId: 'Rogue' });
+  const state = model.normalize({ ...lateDragonEncounter(), round: 2, activeId: 'Rogue' });
   const order = model.turns(state);
   const beforeOwner = order.slice(0, order.findIndex(c => c.id === 'Dragon')).filter(c => c.legendary);
   const result = model.skipLegendary(state, 'Dragon', true);
-  assert.deepEqual(result.skippedActions[1], beforeOwner.map(c => c.id));
-  assert.equal(result.skippedActions[2], undefined);
+  assert.deepEqual(result.skippedActions[2], beforeOwner.map(c => c.id));
+  assert.equal(result.skippedActions[3], undefined);
   assert.deepEqual(model.pendingLegendary(result, 'Dragon'), []);
+});
+
+test('legendary batches span owner turns, never adjacent to their owner, at every initiative position', () => {
+  for (const count of [3, 4, 7]) {
+    for (let ownerIndex = 0; ownerIndex < count; ownerIndex++) {
+      for (const actions of [1, 3, 8]) {
+        const state = model.normalize({ seed: 42, combatants: Array.from({ length: count }, (_, i) => ({
+          ...combatant('C' + i, count - i), legendaryActions: i === ownerIndex ? actions : 0
+        })) });
+        const ownerId = 'C' + ownerIndex;
+        const rounds = Array.from({ length: 4 }, (_, i) => model.turns({ ...state, round: i + 1 }));
+        const timeline = rounds.flat();
+        const ownerTurns = timeline.flatMap((turn, i) => !turn.legendary && turn.id === ownerId ? [i] : []);
+        assert.ok(timeline.slice(0, ownerTurns[0]).every(turn => !turn.legendary));
+        for (let cycle = 0; cycle < ownerTurns.length - 1; cycle++) {
+          const batch = timeline.slice(ownerTurns[cycle] + 1, ownerTurns[cycle + 1]).filter(turn => turn.legendary);
+          assert.equal(batch.length, actions);
+          assert.ok(batch.every(turn => turn.cycle === cycle + 1));
+          assert.ok(!timeline[ownerTurns[cycle] + 1].legendary);
+          assert.ok(!timeline[ownerTurns[cycle + 1] - 1].legendary);
+        }
+        for (const round of rounds) assert.equal(new Set(round.map(turn => turn.id)).size, round.length);
+      }
+    }
+  }
+});
+
+test('a late monster gets exactly one action batch across a round boundary, not a new batch at round start', () => {
+  const state = lateDragonEncounter();
+  const round1 = model.turns(state);
+  const round2 = model.turns({ ...state, round: 2 });
+  const owner1 = round1.findIndex(c => c.id === 'Dragon');
+  const owner2 = round2.findIndex(c => c.id === 'Dragon');
+  assert.equal(round1.slice(0, owner1).filter(c => c.legendary).length, 0);
+  const batch = [...round1.slice(owner1 + 1), ...round2.slice(0, owner2)].filter(c => c.legendary);
+  assert.equal(batch.length, 12);
+  assert.ok(batch.every(c => c.cycle === 1));
+  assert.equal(new Set(batch.map(c => c.id)).size, 12);
+  const skipped = model.skipLegendary({ ...state, activeId: 'Dragon' }, 'Dragon', true);
+  assert.equal(Object.values(skipped.skippedActions).flat().length, 12);
+  assert.deepEqual(model.parseEncounter(JSON.stringify(skipped)), skipped);
 });

@@ -48,9 +48,9 @@ Changes also save automatically in OBS browser storage when available. Leave Shu
 
 Choose a count from 0 to 99 when adding an enemy or editing it in the left roster. Zero disables legendary actions. Each appears as a smaller card with the enemy name followed by Legendary Action, without an initiative counter.
 
-Actions are placed randomly after other combatants' regular turns, including the final turn of a round, and never after their owner's regular turn. They spread across distinct eligible gaps before reusing gaps. If actions outnumber gaps, some gaps contain several actions. A lone enemy waits for another combatant before action cards can appear.
+Each batch starts after its monster's regular turn and ends before that monster's next regular turn, spanning a round boundary when needed. There are no legendary actions before the monster's first turn. Both adjacent gaps are excluded: no action can appear directly after or directly before its owner's regular turn, including across the end of a round. Actions spread across the remaining gaps before reusing them. If actions outnumber gaps, some gaps contain several actions. At least three combatants are needed for any legal gap; with fewer, the count stays saved but no action cards are inserted.
 
-Each round has a newly randomized arrangement, which may occasionally match another round by chance. Previous restores the earlier round's arrangement. Refreshing or loading JSON preserves it. Changing counts or the roster recomputes the current arrangement; removing an enemy removes all its legendary actions.
+Each monster gets a newly randomized action batch for each interval between its own turns. Round end does not reset or replenish that batch; a calendar round can contain the end of one batch and the start of the next. Previous restores the earlier round's arrangement. Refreshing or loading JSON preserves it. Changing counts or the roster recomputes the current arrangement; removing an enemy removes all its legendary actions.
 
 ## Verification
 
