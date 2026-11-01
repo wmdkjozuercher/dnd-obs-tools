@@ -14,25 +14,42 @@
       return ((n ^ n >>> 14) >>> 0) / 4294967296;
     };
   }
-  // Reproducible per encounter and round, including when navigating backwards.
+  function ownerSeed(id) {
+    let hash = 2166136261;
+    for (const char of id) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+    return hash;
+  }
+  // Each batch belongs to the interval after an owner's turn, not a calendar round.
+  // A calendar round contains the end of the previous batch and start of the new one.
   function schedule(state) {
-    const rng = random(state.seed ^ Math.imul(state.round, 0x9E3779B1));
+    const count = state.combatants.length;
     const gaps = state.combatants.map(() => []);
-    for (const owner of state.combatants) {
-      const eligible = state.combatants.flatMap((c, i) => c.id !== owner.id ? [i] : []);
-      if (!eligible.length || !owner.legendaryActions) continue;
-      let pool = [];
-      for (let action = 1; action <= owner.legendaryActions; action++) {
-        if (!pool.length) {
-          pool = [...eligible];
-          for (let i = pool.length - 1; i > 0; i--) {
-            const j = Math.floor(rng() * (i + 1));
-            [pool[i], pool[j]] = [pool[j], pool[i]];
+    state.combatants.forEach((owner, ownerIndex) => {
+      if (!owner.legendaryActions || count < 3) return;
+      const eligible = Array.from({ length: count - 2 }, (_, i) => (ownerIndex + i + 1) % count);
+      for (const cycle of [state.round - 1, state.round]) {
+        if (cycle < 1) continue; // No actions before the owner's first turn.
+        const rng = random(state.seed ^ ownerSeed(owner.id) ^ Math.imul(cycle, 0x9E3779B1));
+        let pool = [];
+        for (let action = 1; action <= owner.legendaryActions; action++) {
+          if (!pool.length) {
+            pool = [...eligible];
+            for (let i = pool.length - 1; i > 0; i--) {
+              const j = Math.floor(rng() * (i + 1));
+              [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
           }
+          const gap = pool.pop();
+          const round = cycle + (gap < ownerIndex ? 1 : 0);
+          if (round !== state.round) continue;
+          const id = 'legendary:' + owner.id + ':cycle:' + cycle + ':' + action;
+          const legacyId = 'legendary:' + owner.id + ':' + action;
+          const skipped = state.skippedActions?.[round] || [];
+          gaps[gap].push({ ...owner, id, ownerId: owner.id, legendary: true, action, cycle,
+            skipped: skipped.includes(id) || skipped.includes(legacyId) });
         }
-        gaps[pool.pop()].push({ ...owner, id: 'legendary:' + owner.id + ':' + action, ownerId: owner.id, legendary: true, action, skipped: (state.skippedActions?.[state.round] || []).includes('legendary:' + owner.id + ':' + action) });
       }
-    }
+    });
     return state.combatants.flatMap((c, i) => [{ ...c, ownerId: c.id, legendary: false }, ...gaps[i]]);
   }
   function normalize(value) {
@@ -51,7 +68,14 @@
     state.skippedActions = {};
     for (const [round, ids] of Object.entries(value.skippedActions || {})) {
       if (!Number.isSafeInteger(Number(round)) || Number(round) < 1 || !Array.isArray(ids)) continue;
-      const valid = [...new Set(ids.filter(id => validActions.has(id)))];
+      const valid = [...new Set(ids.filter(id => validActions.has(id) || (typeof id === 'string' && state.combatants.some(c => {
+        const prefix = 'legendary:' + c.id + ':cycle:';
+        if (!id.startsWith(prefix)) return false;
+        const parts = id.slice(prefix.length).split(':');
+        return parts.length === 2 && parts.every(part => /^\d+$/.test(part))
+          && Number.isSafeInteger(Number(parts[0])) && Number(parts[0]) >= 1
+          && Number(parts[1]) >= 1 && Number(parts[1]) <= c.legendaryActions;
+      }))))];
       if (valid.length) state.skippedActions[round] = valid;
     }
     state.seed = Number.isInteger(value.seed) ? value.seed >>> 0 : 1;
@@ -64,7 +88,7 @@
       opacity: bounded(display.opacity, 100, 0, 100)
     };
     const order = schedule(state);
-    state.activeId = order.some(c => c.id === value.activeId) ? value.activeId : order[0]?.id ?? null;
+    state.activeId = order.find(c => c.id === value.activeId || (c.legendary && 'legendary:' + c.ownerId + ':' + c.action === value.activeId))?.id ?? order[0]?.id ?? null;
     return state;
   }
   function add(state, combatant) {
